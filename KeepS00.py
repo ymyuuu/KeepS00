@@ -1,4 +1,4 @@
-import os, paramiko, yaml, logging
+import os, sys, paramiko, yaml, logging
 
 # 设置日志格式及级别
 logging.basicConfig(
@@ -63,6 +63,17 @@ def run_account(acc):
     ssh.close()
     logging.info(f"{disp} 完成")
 
+def print_separator():
+    # 方式1：使用 print 输出换行符（但 GitHub Actions 可能合并纯换行）
+    print("\n")
+    
+    # 方式2：输出一条横线作为分隔符
+    print("--------------------------------------------------")
+    
+    # 方式3：使用 sys.stdout.write 输出换行符，并立即刷新
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+
 def main():
     accounts = load_config()
     if not accounts:
@@ -70,7 +81,8 @@ def main():
         return
     for acc in accounts:
         run_account(acc)
-        print()  # 每个账户处理完后输出空行
+        # 调用多种方式输出换行分隔符
+        print_separator()
 
 if __name__ == '__main__':
     main()
