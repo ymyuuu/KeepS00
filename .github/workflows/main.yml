@@ -10,7 +10,7 @@ on:
 
 jobs:
   # 作业名称：运行 SSH 命令
-  run-ssh-commands:
+  KeepS00:
     runs-on: ubuntu-latest  # 使用最新的 Ubuntu 运行器
     env:
       # 从 GitHub Secrets 中获取配置，配置内容存储在 CONFIG 环境变量中
