@@ -1,5 +1,6 @@
 import os, paramiko, yaml, logging
 
+# 设置日志格式及级别
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s: %(message)s',
@@ -15,7 +16,7 @@ def load_config():
         config = yaml.safe_load(cfg)
         return config.get('accounts', [])
     except Exception as e:
-        logging.error(f"解析 CONFIG 环境变量失败: {e}")
+        logging.error(f"加载配置失败: {e}")
         return []
 
 def run_account(acc):
@@ -69,7 +70,7 @@ def main():
         return
     for acc in accounts:
         run_account(acc)
-        print()  # 分隔每个账号
+        print()  # 每个账户处理完后输出空行
 
 if __name__ == '__main__':
     main()
