@@ -33,40 +33,80 @@ def print_separator(message=""):
     else:
         logging.info("─" * width)
 
+def validate_config(cfg):
+    """验证配置格式"""
+    if not isinstance(cfg, dict):
+        return False
+    if 'accounts' not in cfg:
+        return False
+    if not isinstance(cfg['accounts'], list):
+        return False
+    return True
+
 def load_config():
     """加载配置"""
     print_separator("配置加载")
+    
+    # 获取环境变量
     cfg = os.environ.get('CONFIG')
     if not cfg:
         logging.error("环境变量 CONFIG 未设置")
         return []
+        
+    # 尝试解析 YAML
     try:
         config = yaml.safe_load(cfg)
+        
+        # 验证配置格式
+        if not validate_config(config):
+            logging.error("配置格式无效")
+            logging.info("需要的格式: {'accounts': [...]}")
+            return []
+            
         accounts = config.get('accounts', [])
+        if not accounts:
+            logging.error("没有找到账户配置")
+            return []
+            
         logging.info(f"已加载 {len(accounts)} 个账户配置")
         return accounts
+        
+    except yaml.YAMLError as e:
+        logging.error(f"YAML 解析失败: {e}")
+        return []
     except Exception as e:
         logging.error(f"配置加载失败: {e}")
         return []
 
+def validate_account(acc):
+    """验证账户配置"""
+    if not isinstance(acc, dict):
+        return False, "账户配置必须是字典格式"
+        
+    # 检查必填字段
+    username = acc.get('username')
+    password = acc.get('password')
+    
+    if not username or not isinstance(username, str):
+        return False, "缺少有效的用户名"
+    if not password or not isinstance(password, str):
+        return False, "缺少有效的密码"
+        
+    return True, ""
+
 def run_account(acc, index, total):
     """处理单个账户"""
-    if not isinstance(acc, dict):
-        logging.error("无效的账户配置，跳过")
+    # 验证账户配置
+    is_valid, error_msg = validate_account(acc)
+    if not is_valid:
+        logging.error(f"无效的账户配置: {error_msg}")
         return
 
-    # 获取必填项
-    username = acc.get('username', '').strip()
-    password = acc.get('password', '').strip()
-    
-    # 检查必填项
-    if not (username and password):
-        logging.error("账户配置缺少必填字段（用户名或密码），跳过")
-        return
-
-    # 获取可选项
-    tip = acc.get('tip', '').strip()
-    cmd = acc.get('cmd', '').strip()
+    # 获取并处理字段
+    username = str(acc.get('username', '')).strip()
+    password = str(acc.get('password', '')).strip()
+    tip = str(acc.get('tip', '')).strip()
+    cmd = str(acc.get('cmd', '')).strip()
     
     # 构造显示名称
     disp = f"{username} ({tip})" if tip else username
@@ -117,17 +157,22 @@ def main():
     setup_logger()
     
     print_separator("程序开始")
-    accounts = load_config()
     
-    if not accounts:
-        logging.error("没有有效的账户配置")
-        return
-    
-    total = len(accounts)
-    for i, acc in enumerate(accounts, 1):
-        run_account(acc, i, total)
-    
-    print_separator("程序完成")
+    try:
+        accounts = load_config()
+        
+        if not accounts:
+            logging.error("没有有效的账户配置")
+            return
+        
+        total = len(accounts)
+        for i, acc in enumerate(accounts, 1):
+            run_account(acc, i, total)
+            
+    except Exception as e:
+        logging.error(f"程序执行异常: {e}")
+    finally:
+        print_separator("程序完成")
 
 if __name__ == '__main__':
     try:
