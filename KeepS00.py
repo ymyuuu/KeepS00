@@ -3,6 +3,7 @@ import paramiko
 import yaml
 import logging
 from datetime import datetime
+import time
 
 def setup_logger():
     """配置日志格式"""
@@ -37,9 +38,7 @@ def mask_string(text):
     """将字符串的80%变成星号"""
     if not text:
         return text
-    # 计算需要打码的字符数量
     mask_count = int(len(text) * 0.8)
-    # 保留开头和结尾的字符
     remain_count = len(text) - mask_count
     head = text[:remain_count//2]
     tail = text[-remain_count//2:] if remain_count > 1 else ''
@@ -61,6 +60,27 @@ def load_config():
         logging.error(f"配置加载失败: {e}")
         return []
 
+def execute_command(ssh, command, disp):
+    """执行单个命令并等待结果"""
+    try:
+        stdin, stdout, stderr = ssh.exec_command(command)
+        exit_status = stdout.channel.recv_exit_status()
+        
+        if exit_status != 0:
+            error = stderr.read().decode('utf-8').strip()
+            if error:
+                logging.error(f"命令执行出错: {error}")
+            return False
+        
+        output = stdout.read().decode('utf-8').strip()
+        if output:
+            logging.info(f"命令输出: {output}")
+        return True
+        
+    except Exception as e:
+        logging.error(f"命令执行异常: {e}")
+        return False
+
 def run_account(acc, index, total):
     """处理单个账户"""
     if not isinstance(acc, dict):
@@ -81,7 +101,6 @@ def run_account(acc, index, total):
         logging.error("账户配置缺少必要字段，跳过")
         return
 
-    # 对用户名和提示进行打码
     masked_username = mask_string(username)
     masked_tip = mask_string(tip) if tip else ''
     disp = f"{masked_username} ({masked_tip})" if masked_tip else masked_username
@@ -107,13 +126,13 @@ def run_account(acc, index, total):
     ]
     
     for i, c in enumerate(cmds, 1):
-        try:
-            logging.info(f"执行命令 {i}/{len(cmds)}")
-            ssh.exec_command(c)[1].channel.recv_exit_status()
-        except Exception as e:
-            logging.error(f"命令执行失败: {e}")
+        logging.info(f"执行命令 {i}/{len(cmds)}")
+        if not execute_command(ssh, c, disp):
+            logging.error(f"命令 {i} 执行失败，停止处理当前账户")
             ssh.close()
             return
+        # 每个命令之间添加短暂延时，确保命令执行完成
+        time.sleep(1)
     
     ssh.close()
     logging.info(f"账户 {disp} 处理完成")
