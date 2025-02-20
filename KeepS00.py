@@ -9,17 +9,14 @@ def setup_logger():
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     
-    # 清除已存在的处理器
     if logger.handlers:
         logger.handlers.clear()
     
-    # 创建格式化器
     formatter = logging.Formatter(
         fmt='[%(asctime)s] %(levelname)-8s │ %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
-    # 添加控制台处理器
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
@@ -58,53 +55,65 @@ def run_account(acc, index, total):
         logging.error("无效的账户配置，跳过")
         return
 
+    # 获取必填项
     username = acc.get('username', '').strip()
     password = acc.get('password', '').strip()
-    cmd = acc.get('cmd', '').strip()
-    tip = acc.get('tip', '')
-    tip = tip.strip() if isinstance(tip, str) else ''
-
-    if not (username and password and cmd):
-        logging.error("账户配置缺少必要字段，跳过")
+    
+    # 检查必填项
+    if not (username and password):
+        logging.error("账户配置缺少必填字段（用户名或密码），跳过")
         return
 
+    # 获取可选项
+    tip = acc.get('tip', '').strip()
+    cmd = acc.get('cmd', '').strip()
+    
+    # 构造显示名称
     disp = f"{username} ({tip})" if tip else username
     hostname = f"{username}.serv00.net"
     
     print_separator(f"账户 {index}/{total}: {disp}")
     
     try:
+        # 建立 SSH 连接
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         logging.info(f"连接到 {hostname}")
         ssh.connect(hostname, port=22, username=username, password=password)
+        
+        # 如果有命令需要执行
+        if cmd:
+            logging.info("开始执行命令")
+            cmds = [
+                "echo '' | crontab -",
+                f'(crontab -l 2>/dev/null; echo "0 *  *{cmd}") | crontab -',
+                f'(crontab -l 2>/dev/null; echo "@reboot {cmd}") | crontab -',
+                f'(crontab -l 2>/dev/null; echo "0 0 * ** kill -9 -1 && {cmd}") | crontab -',
+                cmd
+            ]
+            
+            for i, c in enumerate(cmds, 1):
+                try:
+                    logging.info(f"执行命令 {i}/{len(cmds)}")
+                    ssh.exec_command(c)[1].channel.recv_exit_status()
+                except Exception as e:
+                    logging.error(f"命令执行失败: {e}")
+                    ssh.close()
+                    return
+            logging.info("命令执行完成")
+        else:
+            logging.info("无需执行命令")
+        
+        # 关闭连接
+        ssh.close()
+        logging.info(f"账户 {disp} 处理完成")
+        
     except Exception as e:
         logging.error(f"连接失败: {e}")
         return
 
-    cmds = [
-        "echo '' | crontab -",
-        f'(crontab -l 2>/dev/null; echo "0 *  *{cmd}") | crontab -',
-        f'(crontab -l 2>/dev/null; echo "@reboot {cmd}") | crontab -',
-        f'(crontab -l 2>/dev/null; echo "0 0 * ** kill -9 -1 && {cmd}") | crontab -',
-        cmd
-    ]
-    
-    for i, c in enumerate(cmds, 1):
-        try:
-            logging.info(f"执行命令 {i}/{len(cmds)}")
-            ssh.exec_command(c)[1].channel.recv_exit_status()
-        except Exception as e:
-            logging.error(f"命令执行失败: {e}")
-            ssh.close()
-            return
-    
-    ssh.close()
-    logging.info(f"账户 {disp} 处理完成")
-
 def main():
     """主函数"""
-    # 设置日志
     setup_logger()
     
     print_separator("程序开始")
