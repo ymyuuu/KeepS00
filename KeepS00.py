@@ -62,7 +62,7 @@ def run_account(acc):
             return
     ssh.close()
     logging.info(f"{disp} 完成")
-    print()  # 每个账户处理完后输出空行
+    print("--------------------------------------------------")
 
 def main():
     accounts = load_config()
