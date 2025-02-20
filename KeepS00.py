@@ -48,9 +48,9 @@ def run_account(acc):
 
     cmds = [
         "echo '' | crontab -",
-        f'(crontab -l 2>/dev/null; echo "0 *  *{cmd}") | crontab -',
+        f'(crontab -l 2>/dev/null; echo "0 * * * * {cmd}") | crontab -',
         f'(crontab -l 2>/dev/null; echo "@reboot {cmd}") | crontab -',
-        f'(crontab -l 2>/dev/null; echo "0 0 * ** kill -9 -1 && {cmd}") | crontab -',
+        f'(crontab -l 2>/dev/null; echo "0 0 * * * kill -9 -1 && {cmd}") | crontab -',
         cmd
     ]
     for c in cmds:
@@ -71,5 +71,5 @@ def main():
     for acc in accounts:
         run_account(acc)
 
-if name == 'main':
+if __name__ == '__main__':
     main()
