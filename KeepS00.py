@@ -1,7 +1,4 @@
-import os
-import paramiko
-import yaml
-import logging
+import os, paramiko, yaml, logging
 
 # 设置日志格式及级别
 logging.basicConfig(
@@ -11,10 +8,6 @@ logging.basicConfig(
 )
 
 def load_config():
-    """
-    从环境变量 CONFIG 中加载 YAML 格式的配置数据，
-    返回 accounts 列表。如果出错则返回空列表。
-    """
     cfg = os.environ.get('CONFIG')
     if not cfg:
         logging.error("环境变量 CONFIG 未设置")
@@ -27,10 +20,6 @@ def load_config():
         return []
 
 def run_account(acc):
-    """
-    处理单个账户：检查配置、建立 SSH 连接，
-    执行清空 crontab、添加定时任务和直接执行命令。
-    """
     if not isinstance(acc, dict):
         logging.error("无效的账户配置，跳过")
         return
@@ -73,6 +62,7 @@ def run_account(acc):
             return
     ssh.close()
     logging.info(f"{disp} 完成")
+    print()  # 每个账户处理完后输出空行
 
 def main():
     accounts = load_config()
@@ -81,7 +71,6 @@ def main():
         return
     for acc in accounts:
         run_account(acc)
-        print("--------------------------------------------------")  # 分隔符
 
 if __name__ == '__main__':
     main()
