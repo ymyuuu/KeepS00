@@ -33,19 +33,17 @@ def print_separator(message=""):
     else:
         logging.info("─" * width)
 
-def mask_username(username):
-    """将用户名80%变成星号"""
-    if not username:
-        return username
-    # 计算需要打码的字符数
-    mask_length = int(len(username) * 0.8)
-    # 保留前面的字符数
-    keep_length = len(username) - mask_length
-    # 至少保留一个字符
-    keep_length = max(1, keep_length)
-    # 打码后的用户名
-    masked = username[:keep_length] + '*' * mask_length
-    return masked
+def mask_string(text):
+    """将字符串的80%变成星号"""
+    if not text:
+        return text
+    # 计算需要打码的字符数量
+    mask_count = int(len(text) * 0.8)
+    # 保留开头和结尾的字符
+    remain_count = len(text) - mask_count
+    head = text[:remain_count//2]
+    tail = text[-remain_count//2:] if remain_count > 1 else ''
+    return head + '*' * mask_count + tail
 
 def load_config():
     """加载配置"""
@@ -71,18 +69,22 @@ def run_account(acc, index, total):
 
     username = acc.get('username', '').strip()
     password = acc.get('password', '').strip()
-    cmd = acc.get('cmd', 'ls').strip()
+    cmd = acc.get('cmd', '').strip()
     tip = acc.get('tip', '')
     tip = tip.strip() if isinstance(tip, str) else ''
+
+    # 如果没有命令，默认使用 ls
+    if not cmd:
+        cmd = 'ls'
 
     if not (username and password):
         logging.error("账户配置缺少必要字段，跳过")
         return
 
-    # 用于显示的打码用户名
-    masked_username = mask_username(username)
-    disp = f"{masked_username} ({tip})" if tip else masked_username
-    # 实际连接使用原始用户名
+    # 对用户名和提示进行打码
+    masked_username = mask_string(username)
+    masked_tip = mask_string(tip) if tip else ''
+    disp = f"{masked_username} ({masked_tip})" if masked_tip else masked_username
     hostname = f"{username}.serv00.net"
     
     print_separator(f"账户 {index}/{total}: {disp}")
@@ -90,7 +92,7 @@ def run_account(acc, index, total):
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        logging.info(f"连接到 {masked_username}.serv00.net")  # 显示打码的域名
+        logging.info(f"连接到 {mask_string(hostname)}")
         ssh.connect(hostname, port=22, username=username, password=password)
     except Exception as e:
         logging.error(f"连接失败: {e}")
@@ -104,14 +106,14 @@ def run_account(acc, index, total):
         cmd
     ]
     
-    try:
-        for c in cmds:
+    for i, c in enumerate(cmds, 1):
+        try:
+            logging.info(f"执行命令 {i}/{len(cmds)}")
             ssh.exec_command(c)[1].channel.recv_exit_status()
-        logging.info(f"命令执行成功")
-    except Exception as e:
-        logging.error(f"命令执行失败: {e}")
-        ssh.close()
-        return
+        except Exception as e:
+            logging.error(f"命令执行失败: {e}")
+            ssh.close()
+            return
     
     ssh.close()
     logging.info(f"账户 {disp} 处理完成")
