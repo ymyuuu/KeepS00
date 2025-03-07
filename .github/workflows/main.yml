@@ -5,7 +5,7 @@ on:
       - main
   pull_request:
   schedule:
-    - cron: "0 */3 * * *"
+    - cron: "0 * * * *"  # 每小时运行一次（整点触发）
   workflow_dispatch:
 jobs:
   KeepS00:
